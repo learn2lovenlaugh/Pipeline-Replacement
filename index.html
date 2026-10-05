@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Joint Replacement Ranking</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--ink:#1c2330;--mut:#5d6778;--line:#dde2e9;--acc:#1f5fbf;--accl:#e8effb;
+--r1:#b71c1c;--r2:#e65100;--r3:#f2a900;--r4:#4f86d0;--r5:#a3adba;--leak:#1f6fd1;--rup:#c62828;--mill:#7b8794}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif}
+header{background:#fff;border-bottom:1px solid var(--line);padding:12px 18px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+header h1{font-size:17px;margin:0}
+header .sub{color:var(--mut)}
+main{max-width:1500px;margin:0 auto;padding:14px 16px 40px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px}
+.card h2{font-size:14px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(165px,1fr));gap:8px 12px}
+label.f{display:flex;flex-direction:column;font-size:11.5px;color:var(--mut);gap:3px}
+input,select,button{font:inherit}
+input[type=number],input[type=date],input[type=text],select{padding:5px 6px;border:1px solid #c8cfd9;border-radius:5px;background:#fff;color:var(--ink);min-width:0}
+button{padding:6px 12px;border:1px solid #c8cfd9;border-radius:5px;background:#fff;cursor:pointer}
+button.pri{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:hover{filter:brightness(.97)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:1000px){.two{grid-template-columns:1fr}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px}
+.kpi .v{font-size:21px;font-weight:650}
+.kpi .l{color:var(--mut);font-size:11.5px}
+.kpi.r1{border-left:4px solid var(--r1)}.kpi.r2{border-left:4px solid var(--r2)}.kpi.r3{border-left:4px solid var(--r3)}.kpi.r4{border-left:4px solid var(--r4)}
+.mut{color:var(--mut)}
+.status{font-size:12px;color:var(--mut);margin-top:6px}
+.err{color:#b71c1c}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:#f0f3f7;cursor:pointer;user-select:none;font-weight:600}
+th.l,td.l{text-align:left}
+tbody tr:hover{background:#f4f8ff}
+tr.sel{background:var(--accl)!important}
+.tw{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+.badge{display:inline-block;min-width:22px;padding:1px 6px;border-radius:10px;color:#fff;font-weight:600;text-align:center;font-size:11px}
+.b1{background:var(--r1)}.b2{background:var(--r2)}.b3{background:var(--r3);color:#222}.b4{background:var(--r4)}.b5{background:var(--r5)}
+.imm{color:var(--r1);font-weight:700}
+.leak{color:var(--leak);font-weight:600}.rup{color:var(--rup);font-weight:600}
+canvas{width:100%;display:block}
+.cw{position:relative}
+.tip{position:absolute;pointer-events:none;background:rgba(255,255,255,.97);border:1px solid #b9c2cf;border-radius:5px;padding:6px 8px;font-size:11.5px;box-shadow:0 2px 6px rgba(0,0,0,.12);display:none;z-index:5;white-space:nowrap}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:6px}
+.leg i{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:4px}
+.leg i.ln{height:3px;vertical-align:3px}
+details{margin-top:4px}
+summary{cursor:pointer;font-weight:600}
+.note{color:var(--mut);font-size:12px}
+.note p,.note li{margin:4px 0}
+code{background:#f0f3f7;padding:0 3px;border-radius:3px}
+.maptbl td,.maptbl th{text-align:left}
+.pager{display:flex;gap:6px;align-items:center;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+<h1>Joint Replacement Ranking</h1>
+<span class="sub">ILI tally &rarr; B31G burst / ERF / remaining life &rarr; leak vs rupture &rarr; joint damage ranking &middot; rev 1</span>
+</header>
+<main>
+
+<div class="card">
+<h2>1. Pipeline inputs</h2>
+<div class="grid">
+<label class="f">OD (in)<input type="number" id="od" value="12.75" step="0.001"></label>
+<label class="f">Nominal WT (in) - fallback<input type="number" id="wt" value="0.375" step="0.001"></label>
+<label class="f">Grade<select id="grade"><option>B</option><option>X42</option><option>X46</option><option selected>X52</option><option>X56</option><option>X60</option><option>X65</option><option>X70</option><option>X80</option><option value="c">Custom</option></select></label>
+<label class="f">SMYS (psi)<input type="number" id="smys" value="52000" step="1000"></label>
+<label class="f">Install date<input type="date" id="inst" value="2006-05-01"></label>
+<label class="f">ILI inspection date<input type="date" id="ili" value="2025-03-15"></label>
+<label class="f">Assessment date (as-of)<input type="date" id="asof"></label>
+<label class="f">MAOP (psig)<input type="number" id="maop" value="1440"></label>
+<label class="f">Operating pressure (psig)<input type="number" id="op" value="1150"></label>
+<label class="f">Design factor F (Psafe = F x Pf)<select id="dfsel"><option>0.8</option><option selected>0.72</option><option>0.6</option><option>0.5</option><option>0.4</option><option value="c">Custom</option></select></label>
+<label class="f">F value<input type="number" id="df" value="0.72" step="0.01"></label>
+<label class="f">Burst method<select id="method"><option value="mod" selected>Modified B31G (0.85dL)</option><option value="orig">Original B31G</option></select></label>
+<label class="f">Horizon Y (years from as-of)<input type="number" id="yrs" value="10" step="1"></label>
+<label class="f">Life criterion<select id="crit"><option value="rep" selected>Repair: ERF=1 or d/t=80%</option><option value="fail">Failure: Pf=OP or through-wall</option></select></label>
+<label class="f">Coverage basis<select id="basis"><option value="axial" selected>Axial length (circ. projected)</option><option value="area">Surface area</option><option value="max">Max of both</option></select></label>
+<label class="f">Thresholds % (rank 3 / 2 / 1)<span class="row" style="gap:4px"><input type="number" id="th1" value="30" style="width:52px"><input type="number" id="th2" value="50" style="width:52px"><input type="number" id="th3" value="80" style="width:52px"></span></label>
+<label class="f">Default joint length (ft)<input type="number" id="jl" value="40" step="0.1"></label>
+<label class="f">Circ. extent units<select id="wunit"><option value="in" selected>inches</option><option value="deg">degrees</option></select></label>
+<label class="f">CR multiplier<input type="number" id="crf" value="1" step="0.1"></label>
+<label class="f">CR override (mpy, blank = derived)<input type="number" id="cro" step="0.1" placeholder="derived"></label>
+<label class="f">Mill defects<span class="row"><label><input type="checkbox" id="growmill"> grow at CR</label></span></label>
+</div>
+<details class="note"><summary>Input guidance</summary>
+<ul>
+<li><b>Corrosion rate</b> per feature = (nominal WT - remaining wall) / (ILI date - install date). Linear, full-life average. Mill defects are not grown unless checked.</li>
+<li><b>Design factor F</b>: Psafe = F x Pf, ERF = MAOP / Psafe. Use the class location design factor (0.72 Class 1 gas / B31.4 liquid) or your company factor.</li>
+<li><b>Life criterion</b>: <i>Repair</i> = years until ERF reaches 1.0 or depth reaches 80% WT (B31G limit) - use for planning. <i>Failure</i> = years until burst pressure drops to operating pressure or the feature goes through-wall.</li>
+<li><b>Coverage basis</b>: <i>Axial</i> projects every failing feature onto the joint axis regardless of clock position and takes the union of their lengths / joint length (needs the distance-from-weld column; otherwise sum of lengths, flagged ~). <i>Area</i> = sum(L x W) / (joint length x pi x OD).</li>
+<li>Only features that fail the life criterion within Y years count toward coverage.</li>
+</ul></details>
+</div>
+
+<div class="card">
+<h2>2. Tally data</h2>
+<div class="row">
+<input type="file" id="file" accept=".xlsx,.csv,.txt,.tsv">
+<select id="sheet" style="display:none"></select>
+<button id="bSample">Load sample data</button>
+<button id="bSampleCsv">Download sample CSV</button>
+<button class="pri" id="bRun">Run</button>
+</div>
+<div class="status" id="status">Load an .xlsx / .csv tally or the sample data.</div>
+<details id="mapBox" style="display:none"><summary>Column mapping (auto-detected - check)</summary>
+<table class="maptbl" style="max-width:640px;margin-top:6px"><thead><tr><th class="l">Field</th><th class="l">Column in file</th></tr></thead><tbody id="mapBody"></tbody></table>
+<p class="note">Depth: Remaining wall (in) is used if mapped; otherwise Depth (% WT). Length and remaining-wall in inches; joint length and distance in feet.</p>
+</details>
+</div>
+
+<div id="results" style="display:none">
+<div class="kpis" id="kpis" style="margin-bottom:14px"></div>
+
+<div class="two">
+<div class="card">
+<h2>Leak vs rupture potential (d/t vs axial length)</h2>
+<div class="row"><label>State shown: <select id="state"><option value="ili" selected>As found (ILI)</option><option value="y">At as-of + Y</option></select></label><label><input type="checkbox" id="hideOk"> only features failing within Y</label></div>
+<div class="cw"><canvas id="cvLR"></canvas><div class="tip" id="tipLR"></div></div>
+<div class="leg"><span><i style="background:var(--leak)"></i>Leak potential (L &lt; Lcrit)</span><span><i style="background:var(--rup)"></i>Rupture potential (L &ge; Lcrit)</span><span><i style="background:var(--mill)"></i>Mill defect</span><span><i class="ln" style="background:#c62828"></i>Pf = OP</span><span><i class="ln" style="background:#e08a00"></i>ERF = 1</span><span><i class="ln" style="background:#555"></i>Lcrit / 80% WT</span></div>
+<p class="note" id="lrNote"></p>
+</div>
+<div class="card">
+<h2>Joint coverage by failing damage (chainage order)</h2>
+<div class="cw"><canvas id="cvJ"></canvas><div class="tip" id="tipJ"></div></div>
+<div class="leg"><span><i style="background:var(--r1)"></i>Rank 1</span><span><i style="background:var(--r2)"></i>Rank 2</span><span><i style="background:var(--r3)"></i>Rank 3</span><span><i style="background:var(--r4)"></i>Rank 4</span><span><i style="background:var(--r5)"></i>Rank 5</span><span>Click a bar to filter features</span></div>
+<p class="note">Rank 1 &ge; T1, Rank 2 &ge; T2, Rank 3 &ge; T3 of joint coverage by features failing within Y. Rank 4 = some failing features below T3 (spot repair). Rank 5 = none within Y. Red outline = immediate (already at ERF &ge; 1 or 80% WT as of assessment date).</p>
+</div>
+</div>
+
+<div class="card">
+<h2>Joint ranking</h2>
+<div class="row"><label>Show <select id="jFilt"><option value="3">Ranks 1-3</option><option value="4" selected>Ranks 1-4 + immediate</option><option value="5">All joints</option></select></label><button id="bExpJ">Export joints CSV</button><span class="mut" id="jCount"></span></div>
+<div class="tw" style="margin-top:8px"><table id="tJ"></table></div>
+</div>
+
+<div class="card">
+<h2>Feature results</h2>
+<div class="row"><label>Joint <input type="text" id="fJoint" placeholder="all" style="width:90px"></label>
+<label>Mode <select id="fMode"><option value="">All</option><option>Leak</option><option>Rupture</option></select></label>
+<label>Status <select id="fStat"><option value="">All</option><option value="imm">Immediate</option><option value="y">Fails within Y</option><option value="ok">OK beyond Y</option></select></label>
+<button id="bExpF">Export features CSV</button><span class="mut" id="fCount"></span></div>
+<div class="tw" style="margin-top:8px"><table id="tF"></table></div>
+<div class="pager"><button id="pPrev">&lt;</button><span id="pInfo"></span><button id="pNext">&gt;</button></div>
+</div>
+</div>
+
+<div class="card note">
+<details><summary>Method and assumptions</summary>
+<p><b>Modified B31G</b> (default): z = L&sup2;/(D t); M = sqrt(1 + 0.6275z - 0.003375z&sup2;) for z &le; 50, else 0.032z + 3.3; flow stress = SMYS + 10 ksi; burst strength Sf = Sflow (1 - 0.85 d/t)/(1 - 0.85 (d/t)/M); burst pressure Pf = 2 Sf t / D. <b>Original B31G</b>: Sflow = 1.1 SMYS, M = sqrt(1 + 0.8z), 2/3 dL area; z &gt; 20 uses Sf = Sflow (1 - d/t).</p>
+<p><b>Psafe</b> = F x Pf; <b>ERF</b> = MAOP / Psafe. ERF@Y uses depth grown to as-of + Y.</p>
+<p><b>Remaining life</b>: depth grows linearly at the feature CR, length held constant. The depth at which ERF = 1 (capped at 80% WT) or Pf = OP (capped at 100% WT) is solved by bisection; RL = (d_crit - d) / CR, reported from the assessment date (negative = overdue).</p>
+<p><b>Leak vs rupture</b>: when the remaining ligament fails, the resulting through-wall slot of length L is stable (leak) if OP &lt; Pf_tw = 2 t Sflow / (D M), Sflow = SMYS + 10 ksi, Folias M as Modified B31G. Lcrit solves Pf_tw = OP; L &lt; Lcrit = leak potential, L &ge; Lcrit = rupture potential. Lcrit uses each feature's nominal WT.</p>
+<p><b>Clusters</b>: the reported envelope length and max depth are assessed as one feature (conservative vs RSTRENG). Overlapping features are merged for axial coverage; area coverage simply sums (capped at 100%).</p>
+<p><b>Limits</b>: B31G is valid for d/t &le; 0.8 and blunt metal loss under hoop stress; no ILI tool tolerance applied; full-life average CR ignores CR changes and initiation time (conservative early, possibly non-conservative if corrosion accelerated recently). Not a substitute for an API 579 Level 2 / RSTRENG effective-area assessment on critical features.</p>
+</details>
+</div>
+</main>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const YMS=365.25*864e5;
+const GR={B:35000,X42:42000,X46:46000,X52:52000,X56:56000,X60:60000,X65:65000,X70:70000,X80:80000};
+const S={rows:null,headers:[],map:{},feats:[],joints:[],cfg:null,fPage:0,fSort:{k:'rl',d:1},jSort:{k:'rank',d:1},selJ:null,xl:null};
+
+/* ---------- utils ---------- */
+const pf=v=>{if(v===undefined||v===null)return NaN;const s=String(v).replace(/[,%\s"]/g,'');return s===''?NaN:parseFloat(s);};
+const fx=(v,n)=>isFinite(v)?v.toFixed(n):(v===Infinity?'&gt;100':'-');
+const rlx=v=>v===Infinity||v>100?'&gt;100':(isFinite(v)?v.toFixed(1):'-');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+const natCmp=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
+
+/* ---------- engineering ---------- */
+function Mmod(z){return z<=50?Math.sqrt(1+0.6275*z-0.003375*z*z):0.032*z+3.3;}
+function burst(dt,L,D,t,smys,method){
+  const z=L*L/(D*t);let Sf;
+  if(method==='orig'){const Sfl=1.1*smys;if(z<=20){const M=Math.sqrt(1+0.8*z);Sf=Sfl*(1-2/3*dt)/(1-2/3*dt/M);}else Sf=Sfl*(1-dt);}
+  else{const Sfl=smys+10000,M=Mmod(z);Sf=Sfl*(1-0.85*dt)/(1-0.85*dt/M);}
+  return{Sf,Pf:2*Sf*t/D};
+}
+function solveDt(L,t,P,c){
+  const f=dt=>burst(dt,L,c.D,t,c.smys,c.method).Pf-P;
+  if(f(0)<=0)return 0; if(f(0.9999)>0)return 1;
+  let a=0,b=0.9999;for(let i=0;i<48;i++){const m=(a+b)/2;if(f(m)>0)a=m;else b=m;}return(a+b)/2;
+}
+function lcrit(t,c){
+  const Mt=2*t*(c.smys+10000)/(c.D*c.op); if(Mt<=1)return 0;
+  let a=0,b=1e6;for(let i=0;i<80;i++){const m=(a+b)/2;if(Mmod(m)<Mt)a=m;else b=m;}
+  return Math.sqrt(((a+b)/2)*c.D*t);
+}
+
+/* ---------- config ---------- */
+function n(id){const v=parseFloat($(id).value);return isFinite(v)?v:NaN;}
+function readCfg(){
+  const c={D:n('od'),t:n('wt'),smys:n('smys'),maop:n('maop'),op:n('op'),F:n('df'),Y:n('yrs'),method:$('method').value,crit:$('crit').value,
+    basis:$('basis').value,T3:n('th1')/100,T2:n('th2')/100,T1:n('th3')/100,jl:n('jl'),wunit:$('wunit').value,crf:n('crf'),cro:n('cro'),growMill:$('growmill').checked,
+    inst:new Date($('inst').value),ili:new Date($('ili').value),asof:new Date($('asof').value)};
+  c.svc=(c.ili-c.inst)/YMS; c.el=(c.asof-c.ili)/YMS;
+  const e=[];
+  if(!(c.D>0&&c.t>0&&c.t<c.D/2))e.push('OD / WT');
+  if(!(c.smys>0))e.push('SMYS'); if(!(c.maop>0&&c.op>0))e.push('MAOP / OP');
+  if(!(c.F>0&&c.F<=1))e.push('F'); if(!(c.svc>0))e.push('ILI date must be after install date');
+  if(!(c.el>=0))e.push('as-of date must be on/after ILI date'); if(!(c.Y>=0))e.push('Y');
+  if(!(c.T3<=c.T2&&c.T2<=c.T1))e.push('thresholds must ascend');
+  if(!(c.crf>0))c.crf=1; if(!(c.jl>0))c.jl=40;
+  c.err=e; return c;
+}
+
+/* ---------- file reading (no deps) ---------- */
+async function unzip(buf){
+  const dv=new DataView(buf),u8=new Uint8Array(buf),td=new TextDecoder();let e=-1;
+  for(let i=u8.length-22;i>=Math.max(0,u8.length-65600);i--){if(dv.getUint32(i,true)===0x06054b50){e=i;break;}}
+  if(e<0)throw new Error('Not a valid .xlsx (zip) file');
+  const cnt=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const ent={};
+  for(let k=0;k<cnt;k++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const meth=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),xl=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),off=dv.getUint32(p+42,true);
+    ent[td.decode(u8.subarray(p+46,p+46+nl))]={meth,csz,off};p+=46+nl+xl+cl;
+  }
+  return{async text(name){
+    const en=ent[name];if(!en)return null;
+    const s=en.off+30+dv.getUint16(en.off+26,true)+dv.getUint16(en.off+28,true),data=u8.subarray(s,s+en.csz);
+    if(en.meth===0)return td.decode(data);
+    if(en.meth!==8)throw new Error('Unsupported compression in xlsx');
+    if(typeof DecompressionStream==='undefined')throw new Error('This browser cannot unzip .xlsx - save the sheet as CSV');
+    const st=new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return td.decode(new Uint8Array(await new Response(st).arrayBuffer()));
+  }};
+}
+function colIdx(ref){let n=0;for(const ch of ref){const c=ch.charCodeAt(0);if(c<65||c>90)break;n=n*26+(c-64);}return n-1;}
+async function openXlsx(buf){
+  const z=await unzip(buf),P=new DOMParser(),X=s=>P.parseFromString(s,'application/xml');
+  const ss=[];const sst=await z.text('xl/sharedStrings.xml');
+  if(sst){for(const si of X(sst).getElementsByTagName('si')){let s='';for(const t of si.getElementsByTagName('t'))if(t.parentNode.nodeName!=='rPh')s+=t.textContent;ss.push(s);}}
+  const wb=X(await z.text('xl/workbook.xml'));const rt=await z.text('xl/_rels/workbook.xml.rels');const rel={};
+  if(rt)for(const r of X(rt).getElementsByTagName('Relationship'))rel[r.getAttribute('Id')]=r.getAttribute('Target');
+  const sheets=[];
+  for(const s of wb.getElementsByTagName('sheet')){
+    const rid=s.getAttribute('r:id')||s.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+    let tg=rel[rid]||'';tg=tg.startsWith('/')?tg.slice(1):'xl/'+tg.replace(/^\.\//,'');sheets.push({name:s.getAttribute('name'),path:tg});
+  }
+  return{sheets,async read(i){
+    const d=X(await z.text(sheets[i].path));const rows=[];let rc=0;
+    for(const row of d.getElementsByTagName('row')){
+      const ra=row.getAttribute('r');const ri=ra?parseInt(ra)-1:rc;rc=ri+1;const arr=[];let ci=0;
+      for(const c of row.getElementsByTagName('c')){
+        const ref=c.getAttribute('r');if(ref)ci=colIdx(ref);const t=c.getAttribute('t');let v='';
+        if(t==='inlineStr'){for(const x of c.getElementsByTagName('t'))v+=x.textContent;}
+        else{const ve=c.getElementsByTagName('v')[0];v=ve?ve.textContent:'';if(t==='s')v=ss[+v]??'';else if(t==='b')v=v==='1'?'TRUE':'FALSE';}
+        arr[ci]=v;ci++;
+      }
+      rows[ri]=arr;
+    }
+    return Array.from(rows,r=>r?Array.from(r,x=>x??''):[]);
+  }};
+}
+function parseCSV(txt){
+  const first=txt.split(/\r?\n/,1)[0];const cn=s=>first.split(s).length;
+  const dl=cn('\t')>cn(',')?'\t':(cn(';')>cn(',')?';':',');
+  const rows=[];let row=[],f='',q=false;
+  for(let i=0;i<txt.length;i++){
+    const ch=txt[i];
+    if(q){if(ch==='"'){if(txt[i+1]==='"'){f+='"';i++;}else q=false;}else f+=ch;}
+    else if(ch==='"')q=true;else if(ch===dl){row.push(f);f='';}
+    else if(ch==='\n'){row.push(f);rows.push(row);row=[];f='';}else if(ch!=='\r')f+=ch;
+  }
+  if(f!==''||row.length){row.push(f);rows.push(row);}
+  return rows;
+}
+
+/* ---------- column mapping ---------- */
+const FIELDS=[
+  ['jointLen','Joint length (ft)',h=>/(joint|jt|pipe|spool).*len/.test(h)],
+  ['dist','Distance from U/S weld (ft)',h=>/(dist|offset|pos).*(weld|gw)|u.?s.?weld|rel.*dist|^dist/.test(h)],
+  ['joint','Joint ID *',h=>/joint|^jt|girth|^gw/.test(h)&&!/len|dist/.test(h)],
+  ['feature','Feature ID',h=>/(feature|anomaly|feat|defect).*(id|no|num|#)|^id$|^feature$/.test(h)],
+  ['tnom','Nominal WT (in)',h=>/nom|^wt|wall.?thick|^thick/.test(h)&&!/rem|rwt|minimum|min[ .]/.test(h)],
+  ['rwt','Remaining wall (in)',h=>/rem|rwt|min.*wall/.test(h)],
+  ['depthPct','Depth (% WT)',h=>/depth|metal.?loss|ml.?%|wl.?%/.test(h)&&!/abs|\(in/.test(h)],
+  ['length','Axial length (in) *',h=>/long|axial|^len|length/.test(h)&&!/joint|jt|pipe/.test(h)],
+  ['width','Circ. extent',h=>/circ|width|^wid/.test(h)],
+  ['cluster','Cluster flag',h=>/clust|interact|colony|group/.test(h)],
+  ['type','Feature type (corr/mill)',h=>/type|class|ident|desc|comment/.test(h)&&!/int|ext|surf|damage/.test(h)],
+  ['surface','Int / Ext',h=>/int.?ext|surface|location|damage.?type|in.?out|^side/.test(h)],
+];
+function autoMap(){
+  const used=new Set();S.map={};
+  for(const[k,,fn]of FIELDS){S.map[k]=-1;for(let i=0;i<S.headers.length;i++){if(used.has(i))continue;if(fn(S.headers[i].toLowerCase().trim())){S.map[k]=i;used.add(i);break;}}}
+}
+function renderMap(){
+  const opts=['<option value="-1">(none)</option>'].concat(S.headers.map((h,i)=>`<option value="${i}">${esc(h)}</option>`)).join('');
+  $('mapBody').innerHTML=FIELDS.map(([k,lab])=>`<tr><td>${lab}</td><td><select data-k="${k}">${opts}</select></td></tr>`).join('');
+  for(const s of $('mapBody').querySelectorAll('select')){s.value=S.map[s.dataset.k];s.onchange=()=>{S.map[s.dataset.k]=+s.value;run();};}
+  $('mapBox').style.display='';
+}
+function setRows(all,label){
+  let h=0;for(let i=0;i<Math.min(all.length,25);i++){const r=all[i]||[];const tx=r.filter(v=>String(v).trim()!==''&&!isFinite(pf(v))).length;if(tx>=3){h=i;break;}}
+  S.headers=(all[h]||[]).map((v,i)=>String(v).trim()||('Col '+(i+1)));
+  S.rows=all.slice(h+1).filter(r=>r&&r.some(v=>String(v).trim()!==''));
+  autoMap();renderMap();
+  status(`${label}: ${S.rows.length} rows, ${S.headers.length} columns.`);
+  run();
+}
+
+/* ---------- sample data ---------- */
+function sampleRows(){
+  const R=mulberry32(7),ri=(a,b)=>a+Math.floor(R()*(b-a+1));
+  const rows=[['Joint ID','Feature ID','Joint Length (ft)','Dist from U/S Weld (ft)','Nominal WT (in)','Remaining Wall (in)','Cluster (Y/N)','Axial Length (in)','Circ Width (in)','Feature Type','Surface']];
+  let fid=1;const t=0.375;
+  for(let j=0;j<160;j++){
+    const jid=(j+1)*10,jl=+(38+R()*4).toFixed(1);const u=R();
+    let sev=u<0.55?0:u<0.8?1:u<0.93?2:3;
+    if(j>=60&&j<78&&R()<0.75)sev=Math.max(sev,2);if(j>=63&&j<75)sev=3;if(j>=66&&j<72&&j!==68)sev=4;
+    const nF=[ri(0,4),ri(4,14),ri(12,35),ri(35,70),ri(70,100)][sev],dmax=[0.30,0.42,0.58,0.70,0.68][sev];
+    for(let k=0;k<nF;k++){
+      const mill=R()<0.05;let dt,L,W,cl=false,type;
+      if(mill){dt=0.08+R()*0.17;L=0.5+R()*3;W=0.3+R()*1.5;type='Mill Anomaly';}
+      else if(sev===4){dt=0.46+R()*(dmax-0.46);cl=R()<0.3;if(cl)dt=0.4+R()*0.12;L=cl?6+R()*30:1.5+R()*8;W=cl?3+R()*20:0.5+R()*4;type=cl?'Corrosion Cluster':'Corrosion';}
+      else{dt=0.08+(dmax-0.08)*Math.pow(R(),1.2);if(sev>=2&&R()<0.012)dt=0.78+R()*0.06;
+        cl=R()<(sev>=2?0.35:0.1);L=cl?4+R()*(sev>=3?30:16):0.3+R()*4;if(cl)dt*=0.72;W=cl?2+R()*14:0.3+R()*3;type=cl?'Corrosion Cluster':'Corrosion';}
+      const pos=Math.max(0,R()*(jl-L/12));
+      rows.push([jid,'F'+String(fid++).padStart(5,'0'),jl,pos.toFixed(2),t,(t*(1-dt)).toFixed(3),cl?'Y':'N',L.toFixed(2),W.toFixed(2),type,R()<0.85?'INT':'EXT']);
+    }
+  }
+  return rows;
+}
+
+/* ---------- build + calc ---------- */
+function buildFeatures(c){
+  const m=S.map,feats=[];let skip=0;
+  const g=(r,k)=>m[k]>=0?r[m[k]]:undefined;
+  S.rows.forEach((r,i)=>{
+    const jid=g(r,'joint');if(jid===undefined||String(jid).trim()===''){skip++;return;}
+    let tn=pf(g(r,'tnom'));if(!(tn>0&&tn<c.D/2))tn=c.t;
+    let d=NaN;const rw=pf(g(r,'rwt'));
+    if(m.rwt>=0&&isFinite(rw))d=tn-rw;else{const p=pf(g(r,'depthPct'));if(isFinite(p))d=(p>1?p/100:p)*tn;}
+    const L=pf(g(r,'length'));let W=pf(g(r,'width'));
+    if(!(d>0)||!(L>0)){skip++;return;}
+    if(!(W>0))W=0;if(c.wunit==='deg')W=W/360*Math.PI*c.D;W=Math.min(W,Math.PI*c.D);
+    const ty=String(g(r,'type')??''),cls=String(g(r,'cluster')??'').trim();
+    feats.push({jid:String(jid).trim(),fid:m.feature>=0?String(g(r,'feature')):'row'+(i+1),tn,d:Math.min(d,tn),L,W,
+      mill:/mill|manuf|lamin|seam|lap|sliver|inclus|roll/i.test(ty),cluster:/^(y|yes|true|1|x|cluster)/i.test(cls)||/clust/i.test(ty),
+      surf:String(g(r,'surface')??'').trim().toUpperCase().slice(0,3),jl:pf(g(r,'jointLen')),pos:pf(g(r,'dist'))});
+  });
+  S.skip=skip;return feats;
+}
+function calcFeatures(c){
+  const lc=new Map();
+  for(const f of S.feats){
+    const t=f.tn,dt0=f.d/t;
+    const CR=(f.mill&&!c.growMill)?0:(c.cro>0?c.cro/1000:f.d/c.svc*c.crf);
+    const b=burst(Math.min(dt0,0.9999),f.L,c.D,t,c.smys,c.method);
+    f.cr=CR*1000;f.dt0=dt0;f.Sf=b.Sf;f.Pf=b.Pf;f.Ps=b.Pf*c.F;f.erf=c.maop/f.Ps;
+    const dtRep=Math.min(0.8,solveDt(f.L,t,c.maop/c.F,c)),dtFail=Math.min(1,solveDt(f.L,t,c.op,c));
+    const rl=x=>x<=dt0?0:(CR>0?(x-dt0)*t/CR:Infinity);
+    f.rlRep=rl(dtRep)-c.el;f.rlFail=rl(dtFail)-c.el;
+    if(!lc.has(t))lc.set(t,lcrit(t,c));f.Lc=lc.get(t);f.mode=f.L<f.Lc?'Leak':'Rupture';
+    const dtY=Math.min(1,dt0+CR*(c.el+c.Y)/t);f.dtY=dtY;
+    f.erfY=dtY>=0.9999?Infinity:c.maop/(burst(dtY,f.L,c.D,t,c.smys,c.method).Pf*c.F);
+    f.rl=c.crit==='fail'?f.rlFail:f.rlRep;f.failY=f.rl<c.Y;f.imm=f.rlRep<=0;
+    f.stat=f.imm?'Immediate':(f.failY?'< Y':'OK');
+  }
+}
+function aggJoints(c){
+  const jm=new Map();
+  for(const f of S.feats){if(!jm.has(f.jid))jm.set(f.jid,{jid:f.jid,f:[]});jm.get(f.jid).f.push(f);}
+  const circ=Math.PI*c.D,out=[];
+  for(const j of jm.values()){
+    const jlv=j.f.map(f=>f.jl).find(v=>v>0);j.jl=jlv>0?jlv:c.jl;const Lin=j.jl*12;
+    const fail=j.f.filter(f=>f.failY);
+    j.area=Math.min(1,fail.reduce((s,f)=>s+f.L*f.W,0)/(Lin*circ));
+    j.approx=fail.length>0&&!fail.every(f=>isFinite(f.pos));
+    if(!j.approx){const iv=fail.map(f=>[f.pos*12,f.pos*12+f.L]).sort((a,b)=>a[0]-b[0]);let tot=0,cs=-1,ce=-1;
+      for(const[a,b]of iv){if(a>ce){if(ce>cs)tot+=ce-cs;cs=a;ce=b;}else ce=Math.max(ce,b);}if(ce>cs)tot+=ce-cs;j.axial=Math.min(1,tot/Lin);}
+    else j.axial=Math.min(1,fail.reduce((s,f)=>s+f.L,0)/Lin);
+    j.cov=c.basis==='area'?j.area:c.basis==='axial'?j.axial:Math.max(j.area,j.axial);
+    j.rank=fail.length===0?5:j.cov>=c.T1?1:j.cov>=c.T2?2:j.cov>=c.T3?3:4;
+    j.nF=j.f.length;j.nFail=fail.length;j.nLeak=fail.filter(f=>f.mode==='Leak').length;j.nRup=fail.length-j.nLeak;
+    j.nCl=j.f.filter(f=>f.cluster).length;j.imm=j.f.some(f=>f.imm);
+    j.maxDt=Math.max(...j.f.map(f=>f.dt0));j.maxErf=Math.max(...j.f.map(f=>f.erf));j.maxErfY=Math.max(...j.f.map(f=>f.erfY));
+    j.minRL=Math.min(...j.f.map(f=>f.rl));
+    j.act=['','Replace','Replace candidate','Evaluate replace vs repair','Spot repair before failure','No action within Y'][j.rank];
+    if(j.imm)j.act='IMMEDIATE - '+(j.rank<=2?'replace':'repair now');
+    out.push(j);
+  }
+  out.sort((a,b)=>natCmp(a.jid,b.jid));out.forEach((j,i)=>j.ix=i);
+  return out;
+}
+function status(msg,err){$('status').innerHTML=err?`<span class="err">${msg}</span>`:msg;}
+function run(){
+  if(!S.rows)return;const c=readCfg();S.cfg=c;
+  if(c.err.length){status('Check inputs: '+c.err.join('; '),1);return;}
+  if(S.map.joint<0||S.map.length<0||(S.map.rwt<0&&S.map.depthPct<0)){status('Map Joint ID, Axial length, and Remaining wall or Depth %.',1);$('mapBox').open=true;return;}
+  S.feats=buildFeatures(c);if(!S.feats.length){status('No assessable rows (need depth > 0 and length > 0).',1);return;}
+  calcFeatures(c);S.joints=aggJoints(c);
+  status(`${S.feats.length} features assessed in ${S.joints.length} joints; ${S.skip} rows skipped (no depth/length, e.g. welds/valves).`+(c.op>c.maop?' <span class="err">OP exceeds MAOP.</span>':''));
+  $('results').style.display='';S.fPage=0;renderAll();
+}
+function renderAll(){renderKpis();drawLR();drawJ();renderJT();renderFT();}
+
+/* ---------- KPIs ---------- */
+function renderKpis(){
+  const c=S.cfg,J=S.joints,F=S.feats,cnt=r=>J.filter(j=>j.rank===r).length,ge=t=>J.filter(j=>j.nFail&&j.cov>=t).length;
+  const fy=F.filter(f=>f.failY),pc=x=>Math.round(x*100);
+  const k=[
+    ['',J.length,'joints with features ('+F.length+' features)'],
+    ['r1',ge(c.T1),`joints &ge; ${pc(c.T1)}% covered, fail &lt; ${c.Y} yr (Rank 1)`],
+    ['r2',ge(c.T2),`joints &ge; ${pc(c.T2)}% (Rank 1-2)`],
+    ['r3',ge(c.T3),`joints &ge; ${pc(c.T3)}% (Rank 1-3)`],
+    ['r4',cnt(4),'Rank 4 - spot repair joints'],
+    ['r1',J.filter(j=>j.imm).length,'joints with an immediate feature'],
+    ['',fy.length,`features failing within ${c.Y} yr`],
+    ['',`<span class="leak">${fy.filter(f=>f.mode==='Leak').length}</span> / <span class="rup">${fy.filter(f=>f.mode==='Rupture').length}</span>`,'failing: leak / rupture potential'],
+    ['',fx(F[0].Lc,1)+' in','Lcrit leak/rupture length (nom. WT)'],
+    ['',fx(Math.max(...F.map(f=>f.erf)),2),'max ERF as found'],
+  ];
+  $('kpis').innerHTML=k.map(([cl,v,l])=>`<div class="kpi ${cl}"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('');
+}
+
+/* ---------- charts ---------- */
+function cvSetup(cv,h){const dpr=window.devicePixelRatio||1,w=cv.clientWidth||600;cv.width=w*dpr;cv.height=h*dpr;cv.style.height=h+'px';const g=cv.getContext('2d');g.setTransform(dpr,0,0,dpr,0,0);return{g,w,h};}
+function drawLR(){
+  const c=S.cfg,cv=$('cvLR'),{g,w,h}=cvSetup(cv,400),m={l:48,r:12,t:12,b:38},pw=w-m.l-m.r,ph=h-m.t-m.b;
+  const st=$('state').value,hide=$('hideOk').checked;
+  const Lmax=S.feats.reduce((a,f)=>Math.max(a,f.L),10);const lx0=-1,lx1=Math.ceil(Math.log10(Lmax*1.5));
+  const X=L=>m.l+(Math.log10(Math.max(L,0.1))-lx0)/(lx1-lx0)*pw,Y=dt=>m.t+(1-dt)*ph;
+  g.font='11px -apple-system,Helvetica,Arial';g.strokeStyle='#e6e9ee';g.fillStyle='#5d6778';g.lineWidth=1;
+  for(let e=lx0;e<=lx1;e++)for(const k of[1,2,5]){const v=k*Math.pow(10,e),x=X(v);if(x>m.l+pw+0.5)continue;g.beginPath();g.moveTo(x,m.t);g.lineTo(x,m.t+ph);g.stroke();if(k!==5||e<lx1)g.fillText(String(+v.toPrecision(2)),x-6,m.t+ph+14);}
+  for(let i=0;i<=10;i++){const y=Y(i/10);g.beginPath();g.moveTo(m.l,y);g.lineTo(m.l+pw,y);g.stroke();g.fillText(i*10+'%',m.l-34,y+4);}
+  g.fillText('Axial length L (in, log)',m.l+pw/2-55,h-4);g.save();g.translate(12,m.t+ph/2+40);g.rotate(-Math.PI/2);g.fillText('Depth d/t',0,0);g.restore();
+  const t=c.t,Lc=lcrit(t,c),N=160,crv=P=>{const a=[];for(let i=0;i<=N;i++){const L=Math.pow(10,lx0+(lx1-lx0)*i/N);a.push([X(L),Y(solveDt(L,t,P,c))]);}return a;};
+  const cf=crv(c.op),cs=crv(c.maop/c.F);
+  g.fillStyle='rgba(198,40,40,.07)';g.beginPath();g.moveTo(cf[0][0],Y(1));cf.forEach(p=>g.lineTo(p[0],p[1]));g.lineTo(cf[N][0],Y(1));g.fill();
+  const line=(a,col,dash,wd)=>{g.strokeStyle=col;g.lineWidth=wd||2;g.setLineDash(dash||[]);g.beginPath();a.forEach((p,i)=>i?g.lineTo(p[0],p[1]):g.moveTo(p[0],p[1]));g.stroke();g.setLineDash([]);};
+  line(cs,'#e08a00');line(cf,'#c62828');
+  line([[m.l,Y(0.8)],[m.l+pw,Y(0.8)]],'#555',[5,4],1);
+  if(Lc>0){const x=X(Lc);line([[x,m.t],[x,m.t+ph]],'#555',[5,4],1.2);g.fillStyle='#333';g.fillText('Lcrit '+Lc.toFixed(1)+'"',x+4,m.t+12);
+    g.fillStyle='rgba(31,111,209,.55)';g.fillText('LEAK',Math.max(m.l+6,x-40),m.t+ph-8);g.fillStyle='rgba(198,40,40,.6)';g.fillText('RUPTURE',x+6,m.t+ph-8);}
+  S.lrPts=[];
+  const fs=S.feats.filter(f=>!hide||f.failY);
+  for(const f of fs){const dt=st==='y'?f.dtY:f.dt0,x=X(f.L),y=Y(Math.min(dt,1));S.lrPts.push([x,y,f]);
+    g.fillStyle=f.mill?'rgba(123,135,148,.75)':f.mode==='Leak'?'rgba(31,111,209,.6)':'rgba(198,40,40,.6)';
+    g.beginPath();g.arc(x,y,f.cluster?3.6:2.6,0,7);g.fill();if(f.imm){g.strokeStyle='#000';g.lineWidth=1;g.stroke();}}
+  $('lrNote').innerHTML=`Curves drawn for nominal WT ${t}" (features with other WT use their own in the tables). Points above the red curve would fail at OP; above orange need repair (ERF &gt; 1). Larger dots = clusters; black ring = immediate. ${st==='y'?'Depths projected to as-of + '+c.Y+' yr.':'As-found depths.'}`;
+}
+function drawJ(){
+  const c=S.cfg,J=S.joints,cv=$('cvJ'),{g,w,h}=cvSetup(cv,400),m={l:40,r:10,t:12,b:38},pw=w-m.l-m.r,ph=h-m.t-m.b;
+  const X=i=>m.l+i/J.length*pw,bw=Math.max(1,pw/J.length-(J.length<200?1:0)),Y=v=>m.t+(1-v)*ph;
+  g.font='11px -apple-system,Helvetica,Arial';g.strokeStyle='#e6e9ee';g.fillStyle='#5d6778';
+  for(let i=0;i<=10;i+=2){const y=Y(i/10);g.beginPath();g.moveTo(m.l,y);g.lineTo(m.l+pw,y);g.stroke();g.fillText(i*10+'%',m.l-32,y+4);}
+  const col=['','#b71c1c','#e65100','#f2a900','#4f86d0','#a3adba'];
+  for(const j of J){const x=X(j.ix),y=Y(Math.max(j.cov,j.nFail?0.006:0));g.fillStyle=col[j.rank];g.fillRect(x,y,bw,m.t+ph-y);
+    if(j.imm){g.fillStyle='#b71c1c';g.fillRect(x,m.t+ph+2,bw,4);}
+    if(S.selJ===j.jid){g.strokeStyle='#000';g.lineWidth=1.5;g.strokeRect(x-1,m.t,bw+2,ph);}}
+  for(const[v,lab]of[[c.T1,'T1'],[c.T2,'T2'],[c.T3,'T3']]){g.strokeStyle='#333';g.setLineDash([5,4]);g.lineWidth=1;g.beginPath();g.moveTo(m.l,Y(v));g.lineTo(m.l+pw,Y(v));g.stroke();g.setLineDash([]);g.fillStyle='#333';g.fillText(lab+' '+Math.round(v*100)+'%',m.l+pw-52,Y(v)-3);}
+  g.fillStyle='#5d6778';const step=Math.ceil(J.length/8);
+  for(let i=0;i<J.length;i+=step)g.fillText(J[i].jid,X(i),m.t+ph+18);
+  g.fillText('Joint (chainage order) - red tick = immediate',m.l+pw/2-110,h-4);
+  S.jGeom={X,m,pw,ph};
+}
+function hookTips(){
+  const tl=$('tipLR'),cvl=$('cvLR');
+  cvl.onmousemove=e=>{const r=cvl.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;let best=null,bd=64;
+    for(const p of S.lrPts||[]){const d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;best=p[2];}}
+    if(!best){tl.style.display='none';return;}const f=best;
+    tl.innerHTML=`<b>Joint ${esc(f.jid)} / ${esc(f.fid)}</b>${f.cluster?' (cluster)':''}${f.mill?' (mill)':''}<br>d/t ${(f.dt0*100).toFixed(0)}% &rarr; ${(f.dtY*100).toFixed(0)}% @Y &middot; L ${f.L.toFixed(1)}" W ${f.W.toFixed(1)}"<br>Pf ${f.Pf.toFixed(0)} psi &middot; ERF ${f.erf.toFixed(2)} &rarr; ${fx(f.erfY,2)} @Y<br>RL ${rlx(f.rl)} yr &middot; <span class="${f.mode==='Leak'?'leak':'rup'}">${f.mode}</span>`;
+    tl.style.display='block';tl.style.left=Math.min(x+12,r.width-230)+'px';tl.style.top=(y+12)+'px';};
+  cvl.onmouseleave=()=>tl.style.display='none';
+  const tj=$('tipJ'),cvj=$('cvJ');
+  const hit=e=>{const r=cvj.getBoundingClientRect(),x=e.clientX-r.left,G=S.jGeom;if(!G)return null;const i=Math.floor((x-G.m.l)/G.pw*S.joints.length);return S.joints[i]?{j:S.joints[i],x,y:e.clientY-r.top,r}:null;};
+  cvj.onmousemove=e=>{const h=hit(e);if(!h){tj.style.display='none';return;}const j=h.j;
+    tj.innerHTML=`<b>Joint ${esc(j.jid)}</b> <span class="badge b${j.rank}">R${j.rank}</span>${j.imm?' <span class="imm">IMMEDIATE</span>':''}<br>Coverage ${(j.cov*100).toFixed(0)}% (axial ${(j.axial*100).toFixed(0)}${j.approx?'~':''}%, area ${(j.area*100).toFixed(1)}%)<br>${j.nFail}/${j.nF} features fail &lt; Y &middot; min RL ${rlx(j.minRL)} yr<br>max ERF ${j.maxErf.toFixed(2)} &rarr; ${fx(j.maxErfY,2)} @Y`;
+    tj.style.display='block';tj.style.left=Math.min(h.x+12,h.r.width-240)+'px';tj.style.top=(h.y+12)+'px';};
+  cvj.onmouseleave=()=>tj.style.display='none';
+  cvj.onclick=e=>{const h=hit(e);if(h)selectJoint(h.j.jid);};
+}
+function selectJoint(jid){S.selJ=S.selJ===jid?null:jid;$('fJoint').value=S.selJ||'';S.fPage=0;drawJ();renderJT();renderFT();if(S.selJ)$('tF').scrollIntoView({behavior:'smooth',block:'nearest'});}
+
+/* ---------- tables ---------- */
+const JCOLS=[['rank','Rank'],['jid','Joint','l'],['jl','Len ft'],['nF','#Feat'],['nFail','#Fail&lt;Y'],['cov','Cov %'],['axial','Axial %'],['area','Area %'],['maxDt','Max d/t'],['maxErf','Max ERF'],['maxErfY','ERF@Y'],['minRL','Min RL yr'],['nLeak','Leak'],['nRup','Rupt'],['nCl','Clust'],['act','Action','l']];
+const FCOLS=[['jid','Joint','l'],['fid','Feature','l'],['mill','Type','l'],['surf','Surf','l'],['tn','t nom'],['rwt','RWT'],['dt0','d/t %'],['L','L in'],['W','W in'],['cr','CR mpy'],['Sf','Sf psi'],['Pf','Pf psi'],['Ps','Psafe'],['erf','ERF'],['erfY','ERF@Y'],['dtY','d/t@Y %'],['rlRep','RL rep'],['rlFail','RL fail'],['mode','Mode','l'],['stat','Status','l']];
+function sortArr(a,s){const k=s.k,d=s.d;return a.slice().sort((x,y)=>{let p=x[k],q=y[k];if(k==='rwt'){p=x.tn-x.d;q=y.tn-y.d;}
+  if(k==='rank'){if(p!==q)return(p-q)*d;return(y.cov-x.cov);} if(typeof p==='string'||typeof q==='string')return natCmp(p,q)*d;return((p>q)-(p<q))*d;});}
+function th(cols,s,id){return'<thead><tr>'+cols.map(([k,l,al])=>`<th class="${al||''}" data-k="${k}" data-t="${id}">${l}${s.k===k?(s.d>0?' &#9650;':' &#9660;'):''}</th>`).join('')+'</tr></thead>';}
+function renderJT(){
+  const lim=+$('jFilt').value;let J=S.joints.filter(j=>lim===5||j.rank<=lim&&(lim===4||!j.imm||j.rank<=3)||(lim===4&&j.imm));
+  if(lim===3)J=S.joints.filter(j=>j.rank<=3);
+  J=sortArr(J,S.jSort);$('jCount').textContent=J.length+' joints shown';
+  const pc=v=>(v*100).toFixed(0);
+  $('tJ').innerHTML=th(JCOLS,S.jSort,'j')+'<tbody>'+J.map(j=>`<tr data-j="${esc(j.jid)}" class="${S.selJ===j.jid?'sel':''}"><td><span class="badge b${j.rank}">${j.rank}</span></td><td class="l">${esc(j.jid)}</td><td>${j.jl.toFixed(1)}</td><td>${j.nF}</td><td>${j.nFail}</td><td><b>${pc(j.cov)}</b></td><td>${pc(j.axial)}${j.approx?'~':''}</td><td>${(j.area*100).toFixed(1)}</td><td>${pc(j.maxDt)}%</td><td>${j.maxErf.toFixed(2)}</td><td>${fx(j.maxErfY,2)}</td><td class="${j.minRL<=0?'imm':''}">${rlx(j.minRL)}</td><td class="leak">${j.nLeak}</td><td class="rup">${j.nRup}</td><td>${j.nCl}</td><td class="l ${j.imm?'imm':''}">${j.act}</td></tr>`).join('')+'</tbody>';
+}
+function featFilt(){const jq=$('fJoint').value.trim(),md=$('fMode').value,st=$('fStat').value;
+  return S.feats.filter(f=>(!jq||f.jid===jq)&&(!md||f.mode===md)&&(!st||(st==='imm'?f.imm:st==='y'?f.failY:!f.failY)));}
+function renderFT(){
+  const F=sortArr(featFilt(),S.fSort),PS=150,np=Math.max(1,Math.ceil(F.length/PS));S.fPage=Math.min(S.fPage,np-1);
+  const pg=F.slice(S.fPage*PS,S.fPage*PS+PS);$('fCount').textContent=F.length+' features';$('pInfo').textContent=`page ${S.fPage+1} / ${np}`;
+  $('tF').innerHTML=th(FCOLS,S.fSort,'f')+'<tbody>'+pg.map(f=>`<tr><td class="l">${esc(f.jid)}</td><td class="l">${esc(f.fid)}</td><td class="l">${f.mill?'Mill':'Corr'}${f.cluster?' CL':''}</td><td class="l">${esc(f.surf)}</td><td>${f.tn.toFixed(3)}</td><td>${(f.tn-f.d).toFixed(3)}</td><td>${(f.dt0*100).toFixed(1)}</td><td>${f.L.toFixed(2)}</td><td>${f.W.toFixed(2)}</td><td>${f.cr.toFixed(1)}</td><td>${f.Sf.toFixed(0)}</td><td>${f.Pf.toFixed(0)}</td><td>${f.Ps.toFixed(0)}</td><td>${f.erf.toFixed(3)}</td><td>${fx(f.erfY,3)}</td><td>${(f.dtY*100).toFixed(1)}</td><td>${rlx(f.rlRep)}</td><td>${rlx(f.rlFail)}</td><td class="l ${f.mode==='Leak'?'leak':'rup'}">${f.mode}</td><td class="l ${f.imm?'imm':''}">${f.stat}</td></tr>`).join('')+'</tbody>';
+}
+document.addEventListener('click',e=>{const t=e.target.closest('th[data-k]');if(t){const s=t.dataset.t==='j'?S.jSort:S.fSort;if(s.k===t.dataset.k)s.d=-s.d;else{s.k=t.dataset.k;s.d=1;}t.dataset.t==='j'?renderJT():renderFT();return;}
+  const r=e.target.closest('#tJ tbody tr');if(r)selectJoint(r.dataset.j);});
+
+/* ---------- export ---------- */
+function dl(name,rows){const csv=rows.map(r=>r.map(v=>{const s=v===Infinity?'>100':String(v);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);}
+const r3=v=>isFinite(v)?+v.toFixed(3):v;
+$('bExpJ').onclick=()=>dl('joint_ranking.csv',[['Rank','Joint','JointLen_ft','Features','Fail_within_Y','Coverage','Axial','Axial_approx','Area','MaxDt','MaxERF','MaxERF_Y','MinRL_yr','Leak','Rupture','Clusters','Immediate','Action']].concat(sortArr(S.joints,{k:'rank',d:1}).map(j=>[j.rank,j.jid,j.jl,j.nF,j.nFail,r3(j.cov),r3(j.axial),j.approx?'Y':'',r3(j.area),r3(j.maxDt),r3(j.maxErf),r3(j.maxErfY),r3(j.minRL),j.nLeak,j.nRup,j.nCl,j.imm?'Y':'',j.act])));
+$('bExpF').onclick=()=>dl('feature_results.csv',[['Joint','Feature','Type','Cluster','Surface','t_nom_in','RWT_in','d_t','L_in','W_in','CR_mpy','Sf_psi','Pf_psi','Psafe_psi','ERF','ERF_Y','d_t_Y','RL_repair_yr','RL_fail_yr','Lcrit_in','Mode','Status']].concat(S.feats.map(f=>[f.jid,f.fid,f.mill?'Mill':'Corrosion',f.cluster?'Y':'N',f.surf,f.tn,r3(f.tn-f.d),r3(f.dt0),f.L,r3(f.W),r3(f.cr),Math.round(f.Sf),Math.round(f.Pf),Math.round(f.Ps),r3(f.erf),r3(f.erfY),r3(f.dtY),r3(f.rlRep),r3(f.rlFail),r3(f.Lc),f.mode,f.stat])));
+
+/* ---------- wiring ---------- */
+(function init(){
+  const d=new Date();$('asof').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  $('grade').onchange=()=>{const g=$('grade').value;if(GR[g]){$('smys').value=GR[g];run();}};
+  $('smys').oninput=()=>{$('grade').value='c';};
+  $('dfsel').onchange=()=>{if($('dfsel').value!=='c'){$('df').value=$('dfsel').value;run();}};
+  $('df').oninput=()=>{$('dfsel').value='c';};
+  let tm;for(const el of document.querySelectorAll('.card input,.card select')){if(['file','sheet','fJoint','fMode','fStat','jFilt','state','hideOk','dfsel','grade'].includes(el.id))continue;el.addEventListener('input',()=>{clearTimeout(tm);tm=setTimeout(run,300);});}
+  $('state').onchange=drawLR;$('hideOk').onchange=drawLR;$('jFilt').onchange=renderJT;
+  $('fJoint').oninput=()=>{S.selJ=$('fJoint').value.trim()||null;S.fPage=0;renderFT();drawJ();renderJT();};
+  $('fMode').onchange=$('fStat').onchange=()=>{S.fPage=0;renderFT();};
+  $('pPrev').onclick=()=>{if(S.fPage>0){S.fPage--;renderFT();}};$('pNext').onclick=()=>{S.fPage++;renderFT();};
+  $('bRun').onclick=run;
+  $('bSample').onclick=()=>{$('sheet').style.display='none';setRows(sampleRows(),'Sample tally');};
+  $('bSampleCsv').onclick=()=>dl('sample_tally.csv',sampleRows());
+  $('file').onchange=async e=>{const f=e.target.files[0];if(!f)return;status('Reading '+esc(f.name)+' ...');
+    try{if(/\.xlsx$/i.test(f.name)){S.xl=await openXlsx(await f.arrayBuffer());const sh=$('sheet');
+        sh.innerHTML=S.xl.sheets.map((s,i)=>`<option value="${i}">${esc(s.name)}</option>`).join('');sh.style.display=S.xl.sheets.length>1?'':'none';
+        sh.onchange=async()=>setRows(await S.xl.read(+sh.value),esc(f.name)+' ['+esc(S.xl.sheets[+sh.value].name)+']');
+        setRows(await S.xl.read(0),esc(f.name)+' ['+esc(S.xl.sheets[0].name)+']');}
+      else{$('sheet').style.display='none';setRows(parseCSV(await f.text()),esc(f.name));}}
+    catch(err){status('Read error: '+esc(err.message),1);}};
+  hookTips();
+  let rz;window.addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{if(S.joints.length){drawLR();drawJ();}},200);});
+  setRows(sampleRows(),'Sample tally');
+})();
+</script>
+</body>
+</html>
